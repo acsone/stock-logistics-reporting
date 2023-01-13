@@ -1,0 +1,5 @@
+odoo-addon-product-abc-classification @ git+https://github.com/OCA/product-attribute.git@refs/pull/1192/head#subdirectory=setup/product_abc_classification
+odoo-addon-stock-storage-type @ git+https://github.com/OCA/wms.git@refs/pull/470/head#subdirectory=setup/stock_storage_type
+odoo-addon-stock-storage-type-putaway-abc @ git+https://github.com/OCA/wms.git@refs/pull/496/head#subdirectory=setup/stock_storage_type_putaway_abc
+odoo-addon-stock-route-mto @ git+https://github.com/OCA/stock-logistics-warehouse.git@refs/pull/1580/head#subdirectory=setup/stock_route_mto
+odoo-addon-product-route-mto @ git+https://github.com/OCA/product-attribute.git@refs/pull/1227/head#subdirectory=setup/product_route_mto
