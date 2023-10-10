@@ -113,18 +113,11 @@ class StockAverageDailySale(models.Model):
 
     # pylint: disable=redefined-outer-name
     @api.model
-    def search_read(
-        self, domain=None, fields=None, offset=0, limit=None, order=None, **read_kwargs
-    ):
+    def search(self, domain, offset=0, limit=None, order=None, count=False):
         if not self._check_view():
             return self.browse()
-        return super().search_read(
-            domain=domain,
-            fields=fields,
-            offset=offset,
-            limit=limit,
-            order=order,
-            **read_kwargs
+        return super().search(
+            domain=domain, offset=offset, limit=limit, order=order, count=count
         )
 
     @api.model
