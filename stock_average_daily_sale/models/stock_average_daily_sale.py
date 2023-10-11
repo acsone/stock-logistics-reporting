@@ -103,7 +103,8 @@ class StockAverageDailySale(models.Model):
         try:
             cr = registry(self._cr.dbname).cursor()
             new_self = self.with_env(self.env(cr=cr))  # TDE FIXME
-            new_self.env.cr.execute("SELECT COUNT(1) FROM %s", (AsIs(self._table),))
+            with new_self.env.cr.savepoint():
+                new_self.env.cr.execute("SELECT COUNT(1) FROM %s", (AsIs(self._table),))
             return True
         except ObjectNotInPrerequisiteState:
             _logger.warning(
