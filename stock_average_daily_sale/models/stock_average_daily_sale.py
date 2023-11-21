@@ -104,8 +104,12 @@ class StockAverageDailySale(models.Model):
         try:
             cr = registry(self._cr.dbname).cursor()
             new_self = self.with_env(self.env(cr=cr))  # TDE FIXME
-            new_self.env.cr.execute("SELECT COUNT(1) FROM %s", (AsIs(self._table),))
-            return True
+            new_self.env.cr.execute(
+                "SELECT ispopulated FROM pg_matviews WHERE matviewname = %s;",
+                (self._table,),
+            )
+            records = new_self.env.cr.fetchone()
+            return records and records[0]
         except ObjectNotInPrerequisiteState:
             _logger.warning(
                 _("The materialized view has not been populated. Launch the cron.")
@@ -141,7 +145,9 @@ class StockAverageDailySale(models.Model):
 
     @api.model
     def refresh_view(self):
-        self.env.cr.execute("refresh materialized view %s", (AsIs(self._table),))
+        self.env.cr.execute(
+            "refresh materialized view CONCURRENTLY %s", (AsIs(self._table),)
+        )
         self.set_refresh_date()
 
     def _create_materialized_view(self):
