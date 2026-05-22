@@ -213,32 +213,71 @@ class StockAverageDailySale(models.Model):
                     WHERE
                         stock_average_daily_sale_config.active = True
                 ),
-                -- Collect all moves from the config location to outside that location
+                -- Collect max and min date on all moves to avoid to collect all moves outside the observed scopes
+                cfg_bounds AS (
+                    SELECT
+                        min(date_from) AS min_date,
+                        max(date_to) AS max_date
+                    FROM cfg
+                ),
+                -- Collect config locations
+                cfg_locations AS (
+                    SELECT
+                        cfg.id AS config_id,
+                        sl.id AS location_id
+                    FROM
+                        cfg
+                    JOIN
+                        stock_location sl
+                        ON sl.parent_path LIKE cfg.location_parent_path || '%%'
+                ),
+                -- Prefilter moves used to compute the consumption in order to avoid to process all moves of the system.
+                -- Only moves with a date between the min and max bounds of the different configs are kept
+                filtered_moves AS (
+                    SELECT
+                        sm.id,
+                        sm.product_id,
+                        sm.location_id,
+                        sm.location_dest_id,
+                        sm.product_uom_qty,
+                        sm.date,
+                        sm.date::date AS day
+                    FROM
+                        stock_move sm
+                    CROSS JOIN
+                        cfg_bounds cb
+                    WHERE
+                        sm.state = 'done'
+                        AND sm.product_uom_qty > 0
+                        AND sm.date >= cb.min_date
+                        AND sm.date < cb.max_date + interval '1 day'
+                ),
+                -- Collect moves from the config location to outside that location
                 consumption AS (
                     SELECT
-                        sm.product_id,
-                        sm.product_uom_qty,
+                        fm.product_id,
+                        fm.product_uom_qty,
                         cfg.id AS config_id,
-                        sm.date::date AS day
-                    FROM stock_move sm
-                        JOIN stock_location sl_src ON sm.location_id = sl_src.id
-                        JOIN stock_location sl_dest ON sm.location_dest_id = sl_dest.id
-                        JOIN product_product pp ON pp.id = sm.product_id
-                        JOIN product_template pt ON pp.product_tmpl_id = pt.id
-                        CROSS JOIN LATERAL (
-                            SElECT * FROM cfg
-                            WHERE cfg.abc_classification_level = COALESCE(pt.abc_storage, 'c')
-                            AND sl_src.parent_path ilike concat(cfg.location_parent_path, '%%')
-                            AND sl_dest.parent_path not ilike concat(cfg.location_parent_path, '%%')
-                            -- as date is datetime and date_to is a date, we need to add 1 day to include date_to day
-                            AND sm.date BETWEEN cfg.date_from AND (cfg.date_to + '1 day'::interval)
-                            -- Consumption on excluded days are included
-                            -- AND (NOT cfg.exclude_weekends OR EXTRACT(ISODOW FROM sm.date) NOT IN (6,7))
-                        ) AS cfg
-                    WHERE
-                        sm.state = 'done' AND sm.product_uom_qty > 0
-                        -- exclude inventory loss
+                        fm.day
+                    FROM
+                        filtered_moves fm
+                    JOIN stock_location sl_dest
+                        ON sl_dest.id = fm.location_dest_id
                         AND sl_dest.usage != 'inventory'
+                    JOIN cfg_locations cl
+                        ON cl.location_id = fm.location_id
+                    JOIN cfg
+                        ON cfg.id = cl.config_id
+                    JOIN product_product pp
+                        ON pp.id = fm.product_id
+                    JOIN product_template pt
+                        ON pt.id = pp.product_tmpl_id
+                        AND cfg.abc_classification_level = COALESCE(pt.abc_storage, 'c')
+                    WHERE
+                        fm.date >= cfg.date_from
+                        AND fm.date < cfg.date_to + interval '1 day'
+                        -- destination oustide hierarchy
+                        AND sl_dest.parent_path NOT LIKE cfg.location_parent_path || '%%'
                 ),
                 -- Aggregate on a daily basis
                 daily_consumption AS (
