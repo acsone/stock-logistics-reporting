@@ -220,6 +220,18 @@ class StockAverageDailySale(models.Model):
                         max(date_to) AS max_date
                     FROM cfg
                 ),
+                -- Collect products
+                cfg_products AS (
+                    SELECT
+                        cfg.id AS config_id,
+                        pp.id AS product_id
+                    FROM
+                        cfg
+                    JOIN product_template pt
+                        ON cfg.abc_classification_level = COALESCE(pt.abc_storage, 'c')
+                    JOIN product_product pp
+                        ON pt.id = pp.product_tmpl_id
+                ),
                 -- Collect config locations
                 cfg_locations AS (
                     SELECT
@@ -251,6 +263,7 @@ class StockAverageDailySale(models.Model):
                         AND sm.product_uom_qty > 0
                         AND sm.date >= cb.min_date
                         AND sm.date < cb.max_date + interval '1 day'
+                        AND EXISTS (SELECT 1 FROM cfg_products cp WHERE cp.product_id = sm.product_id)
                 ),
                 -- Collect moves from the config location to outside that location
                 consumption AS (
@@ -264,19 +277,18 @@ class StockAverageDailySale(models.Model):
                     JOIN stock_location sl_dest
                         ON sl_dest.id = fm.location_dest_id
                         AND sl_dest.usage != 'inventory'
-                    JOIN cfg_locations cl
-                        ON cl.location_id = fm.location_id
+                    JOIN cfg_products cp
+                        ON cp.product_id = fm.product_id
                     JOIN cfg
-                        ON cfg.id = cl.config_id
-                    JOIN product_product pp
-                        ON pp.id = fm.product_id
-                    JOIN product_template pt
-                        ON pt.id = pp.product_tmpl_id
-                        AND cfg.abc_classification_level = COALESCE(pt.abc_storage, 'c')
+                        ON cfg.id = cp.config_id
+                    JOIN stock_location sl_src
+                        ON sl_src.id = fm.location_id
                     WHERE
                         fm.date >= cfg.date_from
                         AND fm.date < cfg.date_to + interval '1 day'
-                        -- destination oustide hierarchy
+                        -- source inside hierarchy
+                        AND sl_src.parent_path LIKE cfg.location_parent_path || '%%'
+                        -- destination outside hierarchy
                         AND sl_dest.parent_path NOT LIKE cfg.location_parent_path || '%%'
                 ),
                 -- Aggregate on a daily basis
