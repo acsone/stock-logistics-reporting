@@ -42,9 +42,6 @@ class StockMoveLine(models.Model):
         compute="_compute_sale_order_line_fields", string="Total", compute_sudo=True
     )
 
-    def _get_report_valued_quantity(self):
-        return self.quantity or self.reserved_qty
-
     def _compute_sale_order_line_fields(self):
         """This is computed with sudo for avoiding problems if you don't have
         access to sales orders (stricter warehouse users, inter-company
@@ -59,7 +56,7 @@ class StockMoveLine(models.Model):
             valued_line = line.sale_line
             if not valued_line:
                 continue
-            quantity = line._get_report_valued_quantity()
+            quantity = line.quantity
             different_uom = valued_line.product_uom_id != line.product_uom_id
             # If order line quantity don't match with move line quantity compute values
             different_qty = float_compare(
