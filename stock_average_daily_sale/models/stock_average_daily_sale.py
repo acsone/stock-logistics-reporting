@@ -90,6 +90,7 @@ class StockAverageDailySale(models.Model):
         help="Minimal recommended quantity in stock. Equal to the max "
         "recommended quantity across all active strategies.",
     )
+    recommended_qty_details = fields.Char(compute="_compute_recommended_qty")
 
     def _get_strategy_qty_average_daily(self):
         if not self.config_id.use_average_daily_strategy:
@@ -109,20 +110,34 @@ class StockAverageDailySale(models.Model):
         return self.max_daily_qty
 
     def _get_strategy_methods(self):
-        """Collect all strategy calculation methods matching prefix `_get_strategy_qty_`."""
-        methods = []
+        """Collect strategy calculation methods and their clean display labels."""
+        prefix = "_get_strategy_qty_"
+        strategies = []
         for attr_name in dir(self):
-            if attr_name.startswith("_get_strategy_qty_"):
-                attr = getattr(self, attr_name)
-                if callable(attr):
-                    methods.append(attr)
-        return methods
+            if attr_name.startswith(prefix):
+                strategy_func = getattr(self, attr_name)
+                if callable(strategy_func):
+                    # Extract strategy key name (e.g. 'average_daily' -> 'Average Daily')
+                    raw_name = attr_name[len(prefix) :]
+                    label = raw_name.replace("_", " ").title()
+                    strategies.append((label, strategy_func))
+        return strategies
 
     def _compute_recommended_qty(self):
-        strategy_methods = self._get_strategy_methods()
+        strategies = self._get_strategy_methods()
         for rec in self:
-            strategy_qtys = [method() for method in strategy_methods]
-            rec.recommended_qty = max(strategy_qtys, default=0.0)
+            strategy_results = []
+            details_parts = []
+            for label, method in strategies:
+                qty = method(rec)
+                strategy_results.append(qty)
+                formatted_qty = f"{qty:.2f}"
+                details_parts.append(
+                    _("%(label)s: %(qty)s", label=label, qty=formatted_qty)
+                )
+
+            rec.recommended_qty = max(strategy_results, default=0.0)
+            rec.recommended_qty_details = " | ".join(details_parts)
 
     sale_ok = fields.Boolean(
         string="Can be Sold",
