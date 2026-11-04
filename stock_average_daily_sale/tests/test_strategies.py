@@ -8,10 +8,10 @@ from freezegun import freeze_time
 from odoo.exceptions import UserError
 from odoo.fields import Datetime
 
-from .common import CommonAverageSaleTest
+from .common import CommonAverageUsageTest
 
 
-class TestAverageDailySale(CommonAverageSaleTest):
+class TestAverageDailyUsageStrategies(CommonAverageUsageTest):
     """Test materialized view"""
 
     @classmethod
@@ -44,7 +44,7 @@ class TestAverageDailySale(CommonAverageSaleTest):
             }
         )
         self._refresh()
-        ads = self.env["stock.average.daily.sale"].search(
+        ads = self.env["stock.average.daily.usage"].search(
             [
                 ("location_id", "=", self.location_zone.id),
                 ("product_id", "=", self.product.id),
@@ -62,7 +62,7 @@ class TestAverageDailySale(CommonAverageSaleTest):
             }
         )
         self._refresh()
-        ads = self.env["stock.average.daily.sale"].search(
+        ads = self.env["stock.average.daily.usage"].search(
             [
                 ("location_id", "=", self.location_zone.id),
                 ("product_id", "=", self.product.id),
@@ -81,7 +81,7 @@ class TestAverageDailySale(CommonAverageSaleTest):
             }
         )
         self._refresh()
-        ads = self.env["stock.average.daily.sale"].search(
+        ads = self.env["stock.average.daily.usage"].search(
             [
                 ("location_id", "=", self.location_zone.id),
                 ("product_id", "=", self.product.id),
@@ -101,7 +101,7 @@ class TestAverageDailySale(CommonAverageSaleTest):
             }
         )
         self._refresh()
-        ads = self.env["stock.average.daily.sale"].search(
+        ads = self.env["stock.average.daily.usage"].search(
             [
                 ("location_id", "=", self.location_zone.id),
                 ("product_id", "=", self.product.id),
